@@ -58,7 +58,7 @@ git clone https://github.com/seizu-dev/meeting-summary-skill.git <project>/.clau
 - **ファイル選択** — 会議の予定時刻の前後3時間に候補が1件だけのときを除き、自動では決めません
 - **ドラフトレビュー** — Gemini Notebook の回答をそのまま保存せず、必ず内容を確認してもらいます
 
-所要時間の目安は、56分の録音で**変換とアップロードに20秒前後、Gemini Notebook の処理待ちで1〜2分**です（実測値は [references/tldv.md](references/tldv.md)）。
+所要時間の目安は、54分の録音で**変換とアップロードに20秒前後、Gemini Notebook の処理待ちで1〜2分**です（実測値は [references/tldv.md](references/tldv.md)）。
 
 ## 既知の制限
 
