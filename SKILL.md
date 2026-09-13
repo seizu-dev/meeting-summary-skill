@@ -1,6 +1,6 @@
 ---
 name: meeting-summary
-description: ローカルの録音ファイル（音声・動画）をffmpegでmp3に変換してGoogle NotebookLMに渡し、事前情報と合わせて要約させてミーティングノートを作成する
+description: ローカルの録音ファイル（音声・動画）をffmpegでmp3に変換してGemini Notebookに渡し、事前情報と合わせて要約させてミーティングノートを作成する
 trigger: /meeting-summary
 model: opus
 effort: high
@@ -8,7 +8,7 @@ effort: high
 
 # /meeting-summary
 
-ローカルに保存された会議の録音ファイルを Google NotebookLM に渡して文字起こし・要約させ、Markdown のミーティングノートを作成する。
+ローカルに保存された会議の録音ファイルを Gemini Notebook（2026年7月16日に NotebookLM から改名）に渡して文字起こし・要約させ、Markdown のミーティングノートを作成する。
 
 自動文字起こしが使えない会議ツール（無料プランに落ちた tl;dv、OBS や IC レコーダーでの自前録音、Zoom のローカル録画など）で録音だけが手元に残っているケースを想定している。
 
@@ -19,10 +19,10 @@ effort: high
 | 項目 | 内容 |
 | --- | --- |
 | ffmpeg | 必須。録音ファイルを mp3 に変換するために使う |
-| NotebookLM MCP | 必須。文字起こしと要約を NotebookLM に任せる |
-| アカウント上限 | NotebookLM は notebook 100件 / 1 notebook あたり source 50件。使い捨て運用なら定期的に整理が必要 |
+| Gemini Notebook MCP | 必須。文字起こしと要約を Gemini Notebook に任せる |
+| アカウント上限 | Gemini Notebook は notebook 100件 / 1 notebook あたり source 50件。使い捨て運用なら定期的に整理が必要 |
 
-MCP ツール名は接続方法によってプレフィクスが変わる。claude.ai のコネクタ経由なら `mcp__claude_ai_notebooklm__<tool>` になる。本ドキュメントでは以降 `notebook_create` のようにツール名のみで表記する。
+MCP ツール名は接続方法によってプレフィクスが変わる。claude.ai のコネクタ経由なら `mcp__claude_ai_notebooklm__<tool>` になる。**ツール名・コネクタ名は改名に追随しておらず `notebooklm` のまま**なので、接続先を探すときは旧称で探すこと。本ドキュメントでは以降 `notebook_create` のようにツール名のみで表記する。
 
 使うツール: `notebook_create` / `source_add` / `source_wait` / `source_rename` / `source_delete` / `chat_ask` / `notebook_delete`
 
@@ -70,7 +70,7 @@ Windows の Git Bash（MSYS2）には tzdata が無く `TZ='Asia/Tokyo'` が解�
 
 ## Step 2: 事前情報の収集と固有名詞リストの作成
 
-**このステップを省略すると要約の質が大きく落ちる。** 文字起こしは固有名詞を高確率で誤るため、正しい表記を明示的に NotebookLM へ渡す必要がある。
+**このステップを省略すると要約の質が大きく落ちる。** 文字起こしは固有名詞を高確率で誤るため、正しい表記を明示的に Gemini Notebook へ渡す必要がある。
 
 収集するもの:
 
@@ -87,7 +87,7 @@ Windows の Git Bash（MSYS2）には tzdata が無く `TZ='Asia/Tokyo'` が解�
 
 ## Step 3: mp3 へ変換（必須）
 
-**元の録音ファイルを NotebookLM に直接渡してはいけない。** `.webm` などは HTTP 400 で拒否される。さらに失敗したソースがゴーストとして残り、削除の手間が増える。
+**元の録音ファイルを Gemini Notebook に直接渡してはいけない。** `.webm` などは HTTP 400 で拒否される。さらに失敗したソースがゴーストとして残り、削除の手間が増える。
 
 変換先は一時ディレクトリ（セッションのスクラッチパッド、無ければ `$TMPDIR` / `$TEMP`）。
 
@@ -100,7 +100,7 @@ ffmpeg -y -v error -i "<入力ファイル>" -vn -ac 1 -ar 16000 -b:a 64k "<出�
 - 変換後に `ffprobe` で長さが元と一致することを確認する
 - ffmpeg が `command -v ffmpeg` で見つからない場合、Windows で WinGet 導入済みなら `$LOCALAPPDATA/Microsoft/WinGet/Links/ffmpeg` を試す。それでも無ければユーザーに報告して中断する
 
-## Step 4: NotebookLM へアップロード
+## Step 4: Gemini Notebook へアップロード
 
 1. `notebook_create` で `title="YYYY-MM-DD <会議タイトル>"` の新規 Notebook を作成する（都度使い捨て）。
 
@@ -139,7 +139,7 @@ curl -sS -X POST -H "Accept: application/json" -H "Content-Type: audio/mpeg" \
 
 ## Step 6: ドラフト提示（ユーザーレビュー必須）
 
-- **NotebookLM の回答をそのまま保存しない。** まずチャット上にドラフトを提示し、ユーザーの確認・修正を受ける
+- **Gemini Notebook の回答をそのまま保存しない。** まずチャット上にドラフトを提示し、ユーザーの確認・修正を受ける
 - 情報の粒度に注意し、書きすぎない。論点に直接関係しない枝葉は入れない
 - 裏が取れない固有名詞・数値は断定せず、ユーザーに確認する
 - ユーザーから修正指示があれば反映し、確定するまで繰り返す
@@ -170,7 +170,7 @@ tags: [meeting]
 
 ### 日本語の固有名詞・専門用語は信用しない
 
-NotebookLM の文字起こしは、会話の流れや数値（人数・日数など）は概ね正確に取れるが、**日本語の固有名詞と同音異義語の誤認識がかなり多い**。実際に観測した誤りの例:
+Gemini Notebook の文字起こしは、会話の流れや数値（人数・日数など）は概ね正確に取れるが、**日本語の固有名詞と同音異義語の誤認識がかなり多い**。実際に観測した誤りの例:
 
 | 実際 | 文字起こし結果 |
 | --- | --- |
@@ -183,7 +183,7 @@ NotebookLM の文字起こしは、会話の流れや数値（人数・日数な
 | Claude Code | マックロードコード |
 | Gemini | ジミニ |
 
-社名・サービス名のようなカタカナ・アルファベットの固有名詞は、**原形をとどめない全く別の語に化けることがある**（日本語として意味の通る別の単語になるため、読んでも誤りだと気づきにくい）。だからこそ Step 2 の固有名詞リストを省略しないこと。NotebookLM の回答は必ず事前情報と突き合わせ、裏が取れない固有名詞は断定せずユーザーに確認する。
+社名・サービス名のようなカタカナ・アルファベットの固有名詞は、**原形をとどめない全く別の語に化けることがある**（日本語として意味の通る別の単語になるため、読んでも誤りだと気づきにくい）。だからこそ Step 2 の固有名詞リストを省略しないこと。Gemini Notebook の回答は必ず事前情報と突き合わせ、裏が取れない固有名詞は断定せずユーザーに確認する。
 
 ### 録音長には意味の異なる2つの値がある
 
@@ -224,7 +224,7 @@ ffprobe -v error -select_streams a -show_entries packet=duration_time -of csv=p=
 - 文字起こしの固有名詞は信用せず、必ず事前情報で裏を取る
 - 署名付きアップロード URL は約15分で失効する
 - アップロード失敗時はゴーストソースを削除してから再試行する
-- NotebookLM の回答をそのまま保存せず、必ずドラフトレビューを挟む
+- Gemini Notebook の回答をそのまま保存せず、必ずドラフトレビューを挟む
 - タイムゾーン変換は epoch 秒 + 固定オフセット方式を使う
 
 ## 参考資料

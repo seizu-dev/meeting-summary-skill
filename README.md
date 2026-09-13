@@ -1,14 +1,14 @@
 # meeting-summary-skill
 
-ローカルに保存された会議の録音ファイルを Google NotebookLM に渡して文字起こし・要約させ、Markdown のミーティングノートを作成する [Claude Code](https://claude.com/claude-code) 用スキルです。
+ローカルに保存された会議の録音ファイルを Gemini Notebook（2026年7月16日に NotebookLM から改名）に渡して文字起こし・要約させ、Markdown のミーティングノートを作成する [Claude Code](https://claude.com/claude-code) 用スキルです。
 
 自動文字起こしが使えない状況 — 無料プランに落ちた会議レコーダー、OBS や IC レコーダーでの自前録音、Zoom のローカル録画など — で**録音ファイルだけが手元に残っている**ケースを想定しています。
 
 ## できること
 
 1. 録音ディレクトリから対象ファイルを特定する（会議の予定時刻と照合し、曖昧なときは候補を提示して確認）
-2. ffmpeg で NotebookLM が受け付ける形式（mp3 / モノラル / 16kHz）へ変換する
-3. 会議の目的・参加者・関連資料から**固有名詞リスト**を作り、音声と一緒に NotebookLM へ渡す
+2. ffmpeg で Gemini Notebook が受け付ける形式（mp3 / モノラル / 16kHz）へ変換する
+3. 会議の目的・参加者・関連資料から**固有名詞リスト**を作り、音声と一緒に Gemini Notebook へ渡す
 4. アジェンダ / 議事内容 / 決定事項 / ネクストアクション / 要フォロー事項の構成で要約させる
 5. ドラフトをレビューにかけたうえで Markdown として保存する
 
@@ -20,10 +20,10 @@
 | --- | --- |
 | Claude Code | スキルの実行環境 |
 | ffmpeg | 必須。録音ファイルの変換に使う |
-| NotebookLM MCP | **必須。** 文字起こしと要約を Google NotebookLM に任せる |
-| NotebookLM アカウント | notebook 100件 / 1 notebook あたり source 50件が上限 |
+| Gemini Notebook MCP | **必須。** 文字起こしと要約を Gemini Notebook に任せる |
+| Gemini Notebook アカウント | notebook 100件 / 1 notebook あたり source 50件が上限 |
 
-NotebookLM MCP は claude.ai のコネクタとして接続する構成で検証しています。MCP ツール名のプレフィクスは接続方法によって変わります（claude.ai 経由なら `mcp__claude_ai_notebooklm__*`）。
+Gemini Notebook MCP は claude.ai のコネクタとして接続する構成で検証しています。MCP ツール名のプレフィクスは接続方法によって変わります（claude.ai 経由なら `mcp__claude_ai_notebooklm__*`）。**コネクタ名・ツール名は改名に追随しておらず `notebooklm` のまま**なので、接続先を探すときは旧称で探してください。
 
 ローカルの Whisper などで代替する経路は**検証していない**ため、このスキルには含めていません。
 
@@ -54,9 +54,9 @@ git clone https://github.com/seizu-dev/meeting-summary-skill.git <project>/.clau
 処理中はユーザーへの確認が2回入ります。
 
 - **ファイル選択** — 会議の予定時刻の前後3時間に候補が1件だけのときを除き、自動では決めません
-- **ドラフトレビュー** — NotebookLM の回答をそのまま保存せず、必ず内容を確認してもらいます
+- **ドラフトレビュー** — Gemini Notebook の回答をそのまま保存せず、必ず内容を確認してもらいます
 
-所要時間の目安は、56分の録音で**変換とアップロードに20秒前後、NotebookLM の処理待ちで1〜2分**です（実測値は [references/tldv.md](references/tldv.md)）。
+所要時間の目安は、56分の録音で**変換とアップロードに20秒前後、Gemini Notebook の処理待ちで1〜2分**です（実測値は [references/tldv.md](references/tldv.md)）。
 
 ## 既知の制限
 
