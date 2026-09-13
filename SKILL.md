@@ -30,22 +30,43 @@ MCP ツール名は接続方法によってプレフィクスが変わる。clau
 
 引数でパスが渡されていればそれを使う。渡されていない場合、または渡されたパスが存在しない場合は以下の手順で特定する。
 
-1. 録音の保存先ディレクトリをユーザーに尋ねる（会議ツールごとに既定の場所が異なる。既知のものは [references/tldv.md](references/tldv.md) を参照）。
-2. そのディレクトリの候補を新しい順に列挙する。
+1. 録音の保存先ディレクトリを特定する。既知のものは下表のとおり。分からなければユーザーに尋ねる。
+2. そのディレクトリの候補を録音開始時刻つきで列挙する。
+
+### 既知の録音ソースと保存先
+
+| ソース | 保存先 | 形式 | 詳細 |
+| --- | --- | --- | --- |
+| tl;dv | `$HOME/.tldv` | `.webm`（中身は MP4 + Opus） | [references/tldv.md](references/tldv.md) |
+| Windows サウンドレコーダー | `<ドキュメント>/サウンド レコーディング` | `.m4a`（AAC）ほか | [references/windows-sound-recorder.md](references/windows-sound-recorder.md) |
+
+Windows でドキュメントフォルダが OneDrive にリダイレクトされている場合、保存先は `$HOME/OneDrive/ドキュメント/...` 配下になる。`$HOME/Documents` 決め打ちにしないこと。
+
+### 候補の列挙
 
 ```bash
 dir="<録音ディレクトリ>"
+off=32400   # ローカル時刻へのオフセット秒（JST = +9時間）
+
 find "$dir" -maxdepth 1 -type f \( -name '*.webm' -o -name '*.mp4' -o -name '*.m4a' -o -name '*.mp3' -o -name '*.wav' -o -name '*.mkv' \) -printf '%T@\t%p\n' \
   | sort -rn | head -20 | cut -f2- | while read -r f; do
       dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null)
-      printf '%s | %5.1f分 | %s\n' \
-        "$(date -r "$f" '+%Y-%m-%d %H:%M')" \
+      ct=$(ffprobe -v error -show_entries format_tags=creation_time -of csv=p=0 "$f" 2>/dev/null)
+      if [ -n "$ct" ]; then
+        ep=$(date -u -d "$ct" +%s 2>/dev/null)        # コンテナに記録された録音開始時刻（UTC）
+      else
+        ep=$(( $(date -r "$f" +%s) - ${dur%.*} ))     # フォールバック: mtime − 長さ
+      fi
+      printf '開始 %s | %5.1f分 | %s\n' \
+        "$(date -u -d "@$((ep + off))" '+%Y-%m-%d %H:%M')" \
         "$(awk -v d="$dur" 'BEGIN{printf "%.1f", d/60}')" \
         "$(basename "$f")"
     done
 ```
 
-表示される日時はファイルの更新日時（mtime）で、多くの録音ツールでは**録音終了時刻**とほぼ一致する。開始時刻を知りたい場合は mtime から長さを引く。ファイル名にタイムスタンプを埋め込むツールもあるので、規約が分かっている場合はそちらのほうが正確（[references/tldv.md](references/tldv.md) に例がある）。
+表示されるのは**録音開始時刻**。MP4 系コンテナ（`.m4a` / `.mp4`、および中身が MP4 の `.webm`）には `creation_time` タグが UTC で埋まっているため、**ファイル名にタイムスタンプが無い録音でも会議の予定時刻と照合できる**。tl;dv と Windows サウンドレコーダーの両方で、この値が実際の録音開始時刻と一致することを確認済み（`creation_time + duration = mtime` が誤差1秒で成立）。
+
+タグが無いコンテナでは mtime から長さを引いてフォールバックする。ただしファイルをコピー・同期した際に mtime が書き換わっていると当てにならないので、その場合はユーザーに確認する。
 
 ### 自動選択してよい条件
 
@@ -194,7 +215,7 @@ Gemini Notebook の文字起こしは、会話の流れや数値（人数・日�
 | **実音声の長さ** | パケットの `duration_time` の総和 | 実際に収録されている音声の合計。**プレーヤーが表示するのはこちら** |
 | **タイムラインの長さ** | `ffprobe -show_entries format=duration` | 録音の実時間（mtime − 録音開始時刻と一致する） |
 
-録音側が周期的に音声を取りこぼしていると、その分だけ実音声がタイムラインより短くなる（tl;dv での実測では約3.8%の欠落があった。詳細は [references/tldv.md](references/tldv.md)）。
+録音側が周期的に音声を取りこぼしていると、その分だけ実音声がタイムラインより短くなる。**これは録音ソースに依存する。** tl;dv では約3.8%の欠落があったが（詳細は [references/tldv.md](references/tldv.md)）、Windows サウンドレコーダーでは40分・52分の録音で差が0.05秒未満（0.00%）だった。新しい録音ソースを扱うときは一度確かめておくとよい。
 
 **ユーザーに録音長を伝えるときは実音声の長さを使う。** `format=duration` をそのまま「録音は◯分」と報告するとプレーヤー表示と食い違う。一方、会議の予定時間と突き合わせて候補を絞る用途（Step 1）ではタイムライン長のほうが適切。
 
@@ -230,4 +251,5 @@ ffprobe -v error -select_streams a -show_entries packet=duration_time -of csv=p=
 ## 参考資料
 
 - [references/tldv.md](references/tldv.md) — tl;dv クライアントのローカル録音に関する実測知見（ファイル名規約・音声欠落の調査・処理時間ベンチマーク）
+- [references/windows-sound-recorder.md](references/windows-sound-recorder.md) — Windows サウンドレコーダーの録音に関する実測知見（保存先・命名規約・`creation_time` の検算）
 - [references/obsidian.md](references/obsidian.md) — Obsidian Vault と統合する場合のオプション手順
